@@ -37,13 +37,9 @@ impl PartialOrd for PageNode {
                     Some(Ordering::Less) // an article must be less than index page
                 }
             }
-            (
-                &PageNode::Article(_, created_at1, modified_at1),
-                &PageNode::Article(_, created_at2, modified_at2),
-            ) => Some(match created_at1.cmp(created_at2) {
-                Ordering::Equal => modified_at1.cmp(modified_at2),
-                o => o,
-            }),
+            (&PageNode::Article(path1, _, _), &PageNode::Article(path2, _, _)) => {
+                Some(path1.cmp(path2))
+            }
         }
     }
 }
@@ -110,6 +106,7 @@ impl Ssg {
         );
         let markdown = std::fs::read_to_string(&file)?;
         let html = comrak::markdown_to_html(&markdown, &self.option);
+        let html = html.replace("href=\"", "href=\"https://href.li/?");
         let html = self.template.replace("{{ article }}", &html);
         let html = html.replace("{{ title }}", title);
 
