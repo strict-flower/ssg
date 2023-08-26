@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::path::PathBuf;
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Clone)]
 pub enum PageNode {
     IndexPage(PathBuf, Vec<PageNode>),
     Article(PathBuf, Article),

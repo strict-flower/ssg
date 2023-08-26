@@ -5,6 +5,7 @@ use chrono::offset::{FixedOffset, Utc};
 use chrono::DateTime;
 use comrak::ComrakOptions;
 use regex::Regex;
+use serde_json::json;
 use std::fs::{read_dir, Metadata};
 use std::path::PathBuf;
 
@@ -133,6 +134,33 @@ impl Ssg {
 
         res.sort();
 
-        Ok(PageNode::IndexPage(current.clone(), res))
+        let mut articles = vec![];
+        let mut indexes = vec![];
+
+        for x in res.iter() {
+            match &x {
+                PageNode::IndexPage(path, _) => indexes.push(path.join("index.json")),
+                PageNode::Article(path, article) => articles.push(json! {
+                    {
+                        "created_at": article.created_at,
+                        "modified_at": article.modified_at,
+                        "title": article.title,
+                        "path": path.to_path_buf()
+                    }
+                }),
+            }
+        }
+
+        std::fs::write(
+            self.dest.join(&current).join("index.json"),
+            serde_json::to_string(&json! {
+                {
+                    "articles": articles,
+                    "indexes": indexes
+                }
+            })?,
+        )?;
+
+        Ok(PageNode::IndexPage(current, res))
     }
 }
