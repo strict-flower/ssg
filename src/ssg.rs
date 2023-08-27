@@ -29,7 +29,7 @@ impl Ssg {
         option.extension.front_matter_delimiter = Some("---".to_string());
         option.render.unsafe_ = true;
 
-        let ssg_option_regex = Regex::new(r"ssg-([\w\-]+):\s*(.+)\s*")?;
+        let ssg_option_regex = Regex::new(r"ssg-([\w\-]+): *([^\n]+) *")?;
         let tag_element_regex = Regex::new(r"#([^#,]+)(?:,\s*)?")?;
 
         Ok(Ssg {
