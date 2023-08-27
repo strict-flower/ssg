@@ -1,7 +1,7 @@
 use crate::article::Article;
 use crate::tree::PageNode;
 use crate::SsgResult;
-use chrono::offset::{FixedOffset, Utc};
+use chrono::offset::Utc;
 use chrono::DateTime;
 use comrak::ComrakOptions;
 use regex::Regex;
@@ -14,7 +14,7 @@ pub struct Ssg {
     src: PathBuf,
     dest: PathBuf,
     option: ComrakOptions,
-    ssg_tags_regex: Regex,
+    ssg_option_regex: Regex,
     tag_element_regex: Regex,
 }
 
@@ -28,14 +28,15 @@ impl Ssg {
         option.extension.description_lists = true;
         option.extension.front_matter_delimiter = Some("---".to_string());
         option.render.unsafe_ = true;
-        let ssg_tags_regex = Regex::new(r"ssg-tags:\s*((?:#.+(?:,\s*)?)+)")?;
+
+        let ssg_option_regex = Regex::new(r"^\s*ssg-(\w+):\s*(.+)\s*$")?;
         let tag_element_regex = Regex::new(r"#([^#,]+)(?:,\s*)?")?;
 
         Ok(Ssg {
             src,
             dest,
             option,
-            ssg_tags_regex,
+            ssg_option_regex,
             tag_element_regex,
         })
     }
@@ -46,7 +47,7 @@ impl Ssg {
         base_path: PathBuf,
         metadata: Metadata,
     ) -> SsgResult<PageNode> {
-        let title = file
+        let mut title = file
             .file_name()
             .unwrap()
             .to_str()
@@ -60,42 +61,49 @@ impl Ssg {
         let url = url.to_str().unwrap().replace(".md", "");
         let dest_path = self.dest.join(json_url);
 
+        /*
         println!(
             "Processing {} -> {} [{}]",
             file.to_str().unwrap(),
             url,
             dest_path.to_str().unwrap()
         );
+        */
 
         let markdown = std::fs::read_to_string(&file)?;
+        let mut tags = vec![];
 
-        let tags: Vec<String> = if self.ssg_tags_regex.is_match(&markdown) {
-            let caps = self.ssg_tags_regex.captures(&markdown).unwrap();
-            let tags = caps.get(1).unwrap().as_str();
-            self.tag_element_regex
-                .captures_iter(tags)
-                .map(|x| x.get(1).unwrap().as_str().to_string())
-                .collect()
-        } else {
-            vec![]
-        };
+        let created_at: DateTime<Utc> = metadata.created()?.into();
+        let mut created_at = created_at.timestamp();
+
+        let modified_at: DateTime<Utc> = metadata.modified()?.into();
+        let mut modified_at = modified_at.timestamp();
+
+        if self.ssg_option_regex.is_match(&markdown) {
+            for caps in self.ssg_option_regex.captures_iter(&markdown) {
+                let key = caps.get(1).unwrap().as_str();
+                let value = caps.get(2).unwrap().as_str();
+                if key == "tag" {
+                    tags = self
+                        .tag_element_regex
+                        .captures_iter(value)
+                        .map(|x| x.get(1).unwrap().as_str().to_string())
+                        .collect();
+                } else if key == "title" {
+                    title = value;
+                } else if key == "created-at" {
+                    created_at = value.parse()?;
+                    modified_at = value.parse()?;
+                } else if key == "modified-at" {
+                    modified_at = value.parse()?;
+                }
+            }
+        }
+
+        let markdown = markdown.replace(r"\.", r"\\.").replace(r"\,", r"\\,");
 
         let html = comrak::markdown_to_html(&markdown, &self.option);
         let html = html.replace("href=\"", "href=\"https://href.li/?");
-
-        let jst = FixedOffset::east_opt(32400).unwrap();
-
-        let created_at: DateTime<Utc> = metadata.created()?.into();
-        let created_at = created_at
-            .with_timezone(&jst)
-            .format("%Y/%m/%d %H:%I")
-            .to_string();
-
-        let modified_at: DateTime<Utc> = metadata.modified()?.into();
-        let modified_at = modified_at
-            .with_timezone(&jst)
-            .format("%Y/%m/%d %H:%I")
-            .to_string();
 
         let article = Article {
             url: url.clone(),

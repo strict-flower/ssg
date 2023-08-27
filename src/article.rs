@@ -5,8 +5,8 @@ pub struct Article {
     pub url: String,
     pub title: String,
     pub body: String,
-    pub created_at: String,
-    pub modified_at: String,
+    pub created_at: i64,
+    pub modified_at: i64,
     pub tags: Vec<String>,
 }
 

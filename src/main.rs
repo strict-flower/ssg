@@ -17,6 +17,6 @@ fn main() -> SsgResult<()> {
     let source_dir = PathBuf::from(&args[1]);
     let destination_dir = PathBuf::from(&args[2]);
     let ssg = Ssg::new(source_dir, destination_dir.clone())?;
-    dbg!(ssg.process(PathBuf::from(""))?);
+    ssg.process(PathBuf::from(""))?;
     Ok(())
 }
