@@ -32,7 +32,13 @@ impl PartialOrd for PageNode {
                     Some(Ordering::Less) // an article must be less than index page
                 }
             }
-            (&PageNode::Article(path1, _), &PageNode::Article(path2, _)) => Some(path1.cmp(path2)),
+            (&PageNode::Article(path1, article1), &PageNode::Article(path2, article2)) => {
+                Some(if article1.created_at == article2.created_at {
+                    path1.cmp(path2)
+                } else {
+                    article1.created_at.cmp(&article2.created_at)
+                })
+            }
         }
     }
 }

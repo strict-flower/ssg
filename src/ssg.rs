@@ -141,6 +141,7 @@ impl Ssg {
         }
 
         res.sort();
+        res.reverse();
 
         let mut articles = vec![];
         let mut indexes = vec![];
