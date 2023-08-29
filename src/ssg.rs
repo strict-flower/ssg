@@ -103,7 +103,7 @@ impl Ssg {
         let markdown = markdown.replace(r"\.", r"\\.").replace(r"\,", r"\\,");
 
         let html = comrak::markdown_to_html(&markdown, &self.option);
-        let html = html.replace("href=\"", "href=\"https://href.li/?");
+        let html = html.replace("href=\"http", "href=\"https://href.li/?http");
 
         let article = Article {
             url: url.clone(),
