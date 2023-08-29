@@ -83,7 +83,7 @@ impl Ssg {
             for caps in self.ssg_option_regex.captures_iter(&markdown) {
                 let key = caps.get(1).unwrap().as_str();
                 let value = caps.get(2).unwrap().as_str();
-                if key == "tag" {
+                if key == "tags" {
                     tags = self
                         .tag_element_regex
                         .captures_iter(value)
