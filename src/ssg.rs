@@ -57,18 +57,7 @@ impl Ssg {
         let relative_path = file.strip_prefix(&self.src)?;
         let relative_path = relative_path.strip_prefix(&base_path)?;
         let url = base_path.join(relative_path);
-        let json_url = url.to_str().unwrap().replace(".md", ".json");
         let url = url.to_str().unwrap().replace(".md", "");
-        let dest_path = self.dest.join(json_url);
-
-        /*
-        println!(
-            "Processing {} -> {} [{}]",
-            file.to_str().unwrap(),
-            url,
-            dest_path.to_str().unwrap()
-        );
-        */
 
         let markdown = std::fs::read_to_string(&file)?;
         let mut tags = vec![];
@@ -114,8 +103,6 @@ impl Ssg {
             tags,
         };
 
-        std::fs::write(dest_path.as_path(), serde_json::to_string(&article)?)?;
-
         Ok(PageNode::Article(url.clone().into(), article))
     }
 
@@ -143,20 +130,66 @@ impl Ssg {
         res.sort();
         res.reverse();
 
-        let mut articles = vec![];
-        let mut indexes = vec![];
+        let articles: Vec<&PageNode> = res
+            .iter()
+            .filter(|x| matches!(x, PageNode::Article(_, _)))
+            .collect();
+        let indexes: Vec<&PageNode> = res
+            .iter()
+            .filter(|x| matches!(x, PageNode::IndexPage(_, _)))
+            .collect();
 
-        for x in res.iter() {
-            match &x {
-                PageNode::IndexPage(path, _) => indexes.push(path.join("index.json")),
-                PageNode::Article(path, article) => articles.push(json! {
+        let mut articles_json = vec![];
+        let mut indexes_json = vec![];
+
+        for (pos, x) in articles.iter().enumerate() {
+            if let PageNode::Article(path, article) = &x {
+                articles_json.push(json! {
                     {
                         "created_at": article.created_at,
                         "modified_at": article.modified_at,
                         "title": article.title,
-                        "path": path.to_path_buf()
+                        "path": path.to_path_buf(),
                     }
-                }),
+                });
+
+                let next_path = if pos != 0 {
+                    if let PageNode::Article(path_next, _) = articles[pos - 1] {
+                        path_next.to_path_buf()
+                    } else {
+                        PathBuf::new()
+                    }
+                } else {
+                    PathBuf::new()
+                };
+                let prev_path = if pos + 1 < articles.len() {
+                    if let PageNode::Article(path_prev, _) = articles[pos + 1] {
+                        path_prev.to_path_buf()
+                    } else {
+                        PathBuf::new()
+                    }
+                } else {
+                    PathBuf::new()
+                };
+                let dest_path = &self
+                    .dest
+                    .join(PathBuf::from([path.to_str().unwrap(), ".json"].concat()));
+                std::fs::write(
+                    dest_path.as_path(),
+                    serde_json::to_string(&json! {
+                        {
+                            "article": &article,
+                            "prev_path": prev_path,
+                            "next_path": next_path
+                        }
+                    })?,
+                )?;
+            }
+        }
+
+        for x in indexes.iter() {
+            if let PageNode::IndexPage(path, _) = &x {
+                indexes_json.push(path.join("index.json"));
             }
         }
 
@@ -164,8 +197,8 @@ impl Ssg {
             self.dest.join(&current).join("index.json"),
             serde_json::to_string(&json! {
                 {
-                    "articles": articles,
-                    "indexes": indexes
+                    "articles": articles_json,
+                    "indexes": indexes_json
                 }
             })?,
         )?;
